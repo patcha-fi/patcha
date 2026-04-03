@@ -1,0 +1,34 @@
+# Internal generator — never published.
+main.py
+**/main.py
+*.template.py
+scripts/internal/
+.snapshot/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Anchor / Solana
+.anchor/
+test-ledger/
+*.so
+
+# Env / secrets
+.env
+.env.*
+*.pem
+*.keypair.json
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+.git.bak/
