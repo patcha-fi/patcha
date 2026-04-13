@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/hook-runtime",
+    "crates/hook-adapters",
+]
+# The Anchor program is its own nested workspace (idiomatic `anchor init`
+# layout) so `anchor build` resolves it independently. Excluded here so the
+# core crates unit-test on a plain stable toolchain without the Solana SBF
+# toolchain installed.
+exclude = [
+    "programs/patcha-hook-executor",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Patcha Core"]
+license = "MIT"
+repository = "https://github.com/patcha-fi/patcha"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
