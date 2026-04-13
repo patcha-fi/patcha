@@ -1,0 +1,17 @@
+[package]
+name = "patcha-hook-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Patcha hook runtime — event interceptor and execution engine (Anchor-compatible)."
+
+[lib]
+crate-type = ["lib"]
+
+# The runtime core is intentionally dependency-free std Rust so it unit-tests
+# fast on any toolchain and stays embeddable. The on-chain binding (anchor-lang
+# CPI glue) lives in `programs/patcha-hook-executor`, which is a separate
+# workspace that consumes this crate's callback/registry surface.
+[dependencies]
