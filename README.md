@@ -19,3 +19,20 @@ Solana CLMMs.
 `6/6 hooks · 41/41 tests · Orca + Raydium · Anchor 0.31 · mainnet-ready`
 
 ---
+
+## The hook problem
+
+Uniswap v4 made the AMM programmable: a pool can call out to a *hook* contract
+at fixed points in its lifecycle — before and after initialize, add/remove
+liquidity, swap, and donate — so liquidity providers can attach custom logic
+(dynamic fees, gating, limit orders, MEV defenses) without forking the AMM.
+
+Solana's concentrated-liquidity AMMs — Orca Whirlpools and Raydium CLMM — do not
+expose that extension point. They do not call arbitrary programs on the swap
+path, so the v4 pattern does not transfer directly.
+
+Patcha brings the same idea to Solana from the **integration boundary**. A
+router program or an off-chain keeper observes a pool lifecycle event, maps it
+into a venue-neutral context, and calls the Patcha executor. Hooks decide
+allow / deny / fee-override; a veto in a `before*` callback reverts the
+transaction.
