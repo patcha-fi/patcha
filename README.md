@@ -36,3 +36,20 @@ router program or an off-chain keeper observes a pool lifecycle event, maps it
 into a venue-neutral context, and calls the Patcha executor. Hooks decide
 allow / deny / fee-override; a veto in a `before*` callback reverts the
 transaction.
+
+## How a hook evaluates
+
+```rust
+use patcha_hook_runtime::{builtin::DynamicFee, Hook, HookCallback, HookContext, Dex};
+
+let fee_hook = DynamicFee::default();           // base 30 bps, max 100 bps
+let mut ctx = HookContext::new(HookCallback::BeforeSwap, Dex::OrcaWhirlpool, [0u8; 32]);
+ctx.amount_in = 500_000_000;                    // 0.5 SOL-equivalent
+
+let decision = fee_hook.evaluate(&ctx);
+assert!(decision.allow);
+assert_eq!(decision.fee_override_bps, Some(65)); // interpolated toward the cap
+```
+
+The exact same arithmetic is ported into the Anchor program, so a backtest in
+the backend and a trigger on-chain return the same fee.
