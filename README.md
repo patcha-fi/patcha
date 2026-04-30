@@ -53,3 +53,21 @@ assert_eq!(decision.fee_override_bps, Some(65)); // interpolated toward the cap
 
 The exact same arithmetic is ported into the Anchor program, so a backtest in
 the backend and a trigger on-chain return the same fee.
+
+## Six built-in modules
+
+Each module is a patch cable color in the designer; the slug is the stable
+identifier shared by the runtime, the program, the SDK, and the CLI.
+
+| Module | Slug | Category | Callbacks | What it does |
+| --- | --- | --- | --- | --- |
+| Dynamic Fee | `dynamic-fee` | fees | beforeSwap, afterSwap | Ramps the fee from a base to a cap using swap size as a volatility proxy |
+| TimeLock | `time-lock` | timing | beforeAddLiquidity, beforeRemoveLiquidity | Blocks liquidity actions until an unlock timestamp |
+| WhitelistGate | `whitelist-gate` | gating | beforeSwap, beforeAddLiquidity | Restricts actions to an allowlist (Merkle root committed on-chain) |
+| RangeOrder | `range-order` | range | afterSwap | Fills a one-sided order as the tick crosses a target |
+| AntiMEV | `anti-mev` | mev | beforeSwap, afterSwap | Vetoes swaps that move price past a per-block cap; credits prevented MEV |
+| KYCGate | `kyc-gate` | kyc | beforeSwap, beforeAddLiquidity | Requires a verified-credential attestation before acting |
+
+Folding rules when several hooks share a callback: hooks run in install order,
+the first veto short-circuits, the last fee override wins, and credited MEV
+accumulates.
