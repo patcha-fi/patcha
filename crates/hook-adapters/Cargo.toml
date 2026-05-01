@@ -1,0 +1,14 @@
+[package]
+name = "patcha-hook-adapters"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Patcha DEX adapters — map Orca Whirlpools / Raydium CLMM lifecycle events into a venue-neutral HookContext."
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+patcha-hook-runtime = { path = "../hook-runtime" }
