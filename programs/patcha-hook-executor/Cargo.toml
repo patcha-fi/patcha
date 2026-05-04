@@ -1,0 +1,24 @@
+[package]
+name = "patcha-hook-executor"
+version = "0.1.0"
+edition = "2021"
+authors = ["Patcha Core"]
+license = "MIT"
+repository = "https://github.com/patcha-fi/patcha"
+description = "Patcha hook executor — Anchor mainnet program that registers, installs, and triggers CLMM hooks."
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "patcha_hook_executor"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = "0.31.1"
+anchor-spl = "0.31.1"
