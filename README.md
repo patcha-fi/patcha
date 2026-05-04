@@ -71,3 +71,25 @@ identifier shared by the runtime, the program, the SDK, and the CLI.
 Folding rules when several hooks share a callback: hooks run in install order,
 the first veto short-circuits, the last fee override wins, and credited MEV
 accumulates.
+
+## Architecture
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#1A1A1A', 'primaryTextColor': '#F0EAD6', 'primaryBorderColor': '#D4AF37', 'lineColor': '#D4AF37', 'secondaryColor': '#3D2817', 'tertiaryColor': '#1A1A1A', 'fontFamily': 'JetBrains Mono, monospace'}}}%%
+flowchart LR
+    designer["web designer\npatchbay UI"] --> sdk["@patcha/sdk"]
+    cli["patcha CLI"] --> sdk
+    sdk --> lib["@patcha/hook-library"]
+    sdk --> backend["backend\n/hook/simulate"]
+    backend --> rt["hook-runtime\n(Rust engine)"]
+    lib --> rt
+    rt -. "1:1 port" .-> prog["patcha-hook-executor\nAnchor program"]
+    sdk --> prog
+    prog --> orca["Orca Whirlpools"]
+    prog --> ray["Raydium CLMM"]
+```
+
+The decision logic lives once as toolchain-free Rust (`crates/hook-runtime`) and
+is ported 1:1 into the Anchor program. The metadata (slugs, params, cable
+colors) lives once in `@patcha/hook-library` and is read by every other layer,
+so the web designer, SDK, CLI, runtime, and program never drift.
