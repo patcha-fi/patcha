@@ -93,3 +93,18 @@ The decision logic lives once as toolchain-free Rust (`crates/hook-runtime`) and
 is ported 1:1 into the Anchor program. The metadata (slugs, params, cable
 colors) lives once in `@patcha/hook-library` and is read by every other layer,
 so the web designer, SDK, CLI, runtime, and program never drift.
+
+## Repository layout
+
+```
+patcha/
+├── crates/
+│   ├── hook-runtime/     toolchain-free engine — callbacks, registry, 6 builtins
+│   └── hook-adapters/    Orca / Raydium lifecycle event -> HookContext mappers
+├── programs/
+│   └── patcha-hook-executor/   Anchor program — register / install / trigger
+├── packages/
+│   ├── hook-library/     cross-language metadata (slugs, params, cables)
+│   └── ts-sdk/           PDA derivation + params encoders + simulate client
+└── docs/                 architecture · hooks-spec · security
+```
