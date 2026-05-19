@@ -108,3 +108,37 @@ patcha/
 │   └── ts-sdk/           PDA derivation + params encoders + simulate client
 └── docs/                 architecture · hooks-spec · security
 ```
+
+## Quickstart
+
+Build and test the Rust core (no Solana toolchain required for the engine):
+
+```bash
+git clone https://github.com/patcha-fi/patcha
+cd patcha
+cargo test --workspace
+```
+
+Typecheck the TypeScript packages:
+
+```bash
+cd packages/hook-library
+npm install
+npx tsc --noEmit
+```
+
+Encode a hook's params and derive its PDAs with the SDK:
+
+```ts
+import { PatchaClient, encode } from '@patcha/sdk';
+
+const client = new PatchaClient();
+const blob = encode.dynamicFee({
+  baseFeeBps: 30,
+  maxFeeBps: 100,
+  pivotAmount: 1_000_000_000n,
+});
+
+const installation = client.installationPda(pool, 'dynamic-fee');
+const result = await client.simulateHook('dynamic-fee', { baseFeeBps: 30 }, pool, 'orca', 30);
+```
