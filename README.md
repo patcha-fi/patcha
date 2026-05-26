@@ -142,3 +142,10 @@ const blob = encode.dynamicFee({
 const installation = client.installationPda(pool, 'dynamic-fee');
 const result = await client.simulateHook('dynamic-fee', { baseFeeBps: 30 }, pool, 'orca', 30);
 ```
+
+## Hook callbacks
+
+Patcha keeps the full Uniswap v4 `IHooks` surface — ten callbacks in five
+before/after pairs — mapped onto the Solana CLMM lifecycle. The discriminants
+are a stable wire ABI (reused in event encoding), so they are never reordered.
+The complete mapping is in [docs/hooks-spec.md](docs/hooks-spec.md).
