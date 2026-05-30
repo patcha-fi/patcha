@@ -149,3 +149,10 @@ Patcha keeps the full Uniswap v4 `IHooks` surface — ten callbacks in five
 before/after pairs — mapped onto the Solana CLMM lifecycle. The discriminants
 are a stable wire ABI (reused in event encoding), so they are never reordered.
 The complete mapping is in [docs/hooks-spec.md](docs/hooks-spec.md).
+
+## Status
+
+- Engine and adapters: complete, unit-tested (`cargo test --workspace`).
+- Anchor program: builds against Anchor 0.31; mainnet-ready, deploy pending.
+- The program has not had a third-party audit — see
+  [docs/security.md](docs/security.md) before custodying funds.
