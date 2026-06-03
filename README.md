@@ -156,3 +156,16 @@ The complete mapping is in [docs/hooks-spec.md](docs/hooks-spec.md).
 - Anchor program: builds against Anchor 0.31; mainnet-ready, deploy pending.
 - The program has not had a third-party audit — see
   [docs/security.md](docs/security.md) before custodying funds.
+
+## References
+
+- Adams, H. et al. *Uniswap v4 Core* whitepaper, Uniswap Labs, 2024 —
+  <https://app.uniswap.org/whitepaper-v4.pdf>
+- Uniswap v4 hooks documentation —
+  <https://docs.uniswap.org/contracts/v4/concepts/hooks>
+- Orca Whirlpools documentation —
+  <https://dev.orca.so>
+- Raydium CLMM documentation —
+  <https://docs.raydium.io>
+- Anchor framework (PDA + account model) —
+  <https://www.anchor-lang.com>
