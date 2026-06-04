@@ -169,3 +169,7 @@ The complete mapping is in [docs/hooks-spec.md](docs/hooks-spec.md).
   <https://docs.raydium.io>
 - Anchor framework (PDA + account model) —
   <https://www.anchor-lang.com>
+
+## License
+
+MIT — see [LICENSE](LICENSE).
