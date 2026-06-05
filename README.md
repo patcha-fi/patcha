@@ -150,10 +150,22 @@ before/after pairs — mapped onto the Solana CLMM lifecycle. The discriminants
 are a stable wire ABI (reused in event encoding), so they are never reordered.
 The complete mapping is in [docs/hooks-spec.md](docs/hooks-spec.md).
 
+## On-chain program
+
+| field | value |
+| --- | --- |
+| Program ID | `EPcW7e8RxBNPpQK2XKoKG9maWH6QvmU3ejxifoU5rNRa` |
+| Cluster | devnet (mainnet pending) |
+| Explorer | [explorer.solana.com](https://explorer.solana.com/address/EPcW7e8RxBNPpQK2XKoKG9maWH6QvmU3ejxifoU5rNRa?cluster=devnet) |
+
+The hook executor is deployed on devnet for end-to-end testing of the
+register / install / trigger flows. The mainnet deployment ships with a funded
+keypair.
+
 ## Status
 
 - Engine and adapters: complete, unit-tested (`cargo test --workspace`).
-- Anchor program: builds against Anchor 0.31; mainnet-ready, deploy pending.
+- Anchor program: deployed on devnet (Anchor 0.31); mainnet deploy pending.
 - The program has not had a third-party audit — see
   [docs/security.md](docs/security.md) before custodying funds.
 
