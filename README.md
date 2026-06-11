@@ -24,7 +24,7 @@ Solana CLMMs.
 [![Solana](https://img.shields.io/badge/solana-CLMM-9D6BFF?style=flat-square)](programs)
 [![Anchor](https://img.shields.io/badge/anchor-0.31-D4AF37?style=flat-square)](programs/patcha-hook-executor)
 
-`6/6 hooks · 41/41 tests · Orca + Raydium · Anchor 0.31 · mainnet-ready`
+`6/6 hooks · 41/41 tests · Orca + Raydium + Meteora · Anchor 0.31 · holder-tier burn · mainnet-live`
 
 ---
 
@@ -169,6 +169,34 @@ The complete mapping is in [docs/hooks-spec.md](docs/hooks-spec.md).
 The hook executor is deployed on devnet for end-to-end testing of the
 register / install / trigger flows. The mainnet deployment ships with a funded
 keypair.
+
+## PATCHA burn tiers
+
+`install_hook_burning` (the default path used by `patcha-cli install`) burns
+a tier-derived amount of PATCHA from the installer's wallet on every call.
+The tier is a pure function over the installer's share of total
+`PATCHA_MINT` supply — holding is the discount.
+
+| Tier | Holder share of supply | Burn per install |
+| ---- | ---------------------- | ---------------- |
+| T1   | ≥ 2.0%                 | 100 PATCHA       |
+| T2   | ≥ 1.0%                 | 300 PATCHA       |
+| T3   | ≥ 0.5%                 | 1,000 PATCHA     |
+| T4   | ≥ 0.1%                 | 5,000 PATCHA     |
+| T5   | < 0.1%                 | 50,000 PATCHA    |
+
+The mint's `mintAuthority` and `freezeAuthority` are both `null`, so burn
+is a permanent supply reduction and no party can freeze a holder's account.
+The legacy `install_hook` instruction is preserved; pass `--no-burn` to
+opt out of the burn path. Full spec in
+[docs/token-economics.md](docs/token-economics.md).
+
+Quote any wallet against live mint supply:
+
+```bash
+npm i -g patcha-cli@latest
+patcha tiers --wallet <your-wallet-pubkey>
+```
 
 ## Status
 
