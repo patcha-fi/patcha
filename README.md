@@ -24,7 +24,7 @@ Solana CLMMs.
 [![Solana](https://img.shields.io/badge/solana-CLMM-9D6BFF?style=flat-square)](programs)
 [![Anchor](https://img.shields.io/badge/anchor-0.31-D4AF37?style=flat-square)](programs/patcha-hook-executor)
 
-`6/6 hooks · 41/41 tests · Orca + Raydium + Meteora · Anchor 0.31 · holder-tier burn · mainnet-live`
+`8/8 hooks · 59/59 tests · Orca + Raydium + Meteora · Anchor 0.31 · holder-tier burn · mainnet-live`
 
 ---
 
@@ -62,7 +62,7 @@ assert_eq!(decision.fee_override_bps, Some(65)); // interpolated toward the cap
 The exact same arithmetic is ported into the Anchor program, so a backtest in
 the backend and a trigger on-chain return the same fee.
 
-## Six built-in modules
+## Eight built-in modules
 
 Each module is a patch cable color in the designer; the slug is the stable
 identifier shared by the runtime, the program, the SDK, and the CLI.
@@ -75,6 +75,8 @@ identifier shared by the runtime, the program, the SDK, and the CLI.
 | RangeOrder | `range-order` | range | afterSwap | Fills a one-sided order as the tick crosses a target |
 | AntiMEV | `anti-mev` | mev | beforeSwap, afterSwap | Vetoes swaps that move price past a per-block cap; credits prevented MEV |
 | KYCGate | `kyc-gate` | kyc | beforeSwap, beforeAddLiquidity | Requires a verified-credential attestation before acting |
+| PriceImpactCap | `price-impact-cap` | gating | beforeSwap | Rejects swaps whose estimated price impact exceeds a per-swap cap (LP-owned slippage ceiling) |
+| JIT-Defense | `jit-defense` | mev | beforeSwap, beforeAddLiquidity, beforeRemoveLiquidity | Blocks same-block add-swap-remove sandwiches from one wallet (just-in-time LP attack defense) |
 
 Folding rules when several hooks share a callback: hooks run in install order,
 the first veto short-circuits, the last fee override wins, and credited MEV

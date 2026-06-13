@@ -1,66 +1,60 @@
-# Hook specification
+# Hooks specification
 
-## Callback model
+Patcha maps Uniswap v4's ten hook callbacks onto the Solana CLMM lifecycle
+(Orca Whirlpools, Raydium CLMM, and Meteora DLMM). A hook is a small module
+installed against a pool; the on-chain executor invokes it at the matching
+point in the pool's lifecycle.
 
-Patcha keeps the Uniswap v4 `IHooks` surface — ten lifecycle callbacks in five
-before/after pairs — and maps each onto the Solana CLMM lifecycle. The
-discriminants are a stable wire ABI reused in event encoding, so they are never
-reordered.
+## DEX venues
 
-| Tag | Callback | Phase | CLMM lifecycle point |
-| --- | --- | --- | --- |
-| 0 | `beforeInitialize` | before | pool creation |
-| 1 | `afterInitialize` | after | pool creation |
-| 2 | `beforeAddLiquidity` | before | LP deposit |
-| 3 | `afterAddLiquidity` | after | LP deposit |
-| 4 | `beforeRemoveLiquidity` | before | LP withdraw |
-| 5 | `afterRemoveLiquidity` | after | LP withdraw |
-| 6 | `beforeSwap` | before | swap |
-| 7 | `afterSwap` | after | swap |
-| 8 | `beforeDonate` | before | donate / fee top-up |
-| 9 | `afterDonate` | after | donate / fee top-up |
+The executor stamps each lifecycle event with a venue tag, so the same six
+builtin hooks compose with any of the three venues.
 
-A `before*` callback may veto the action (the CLMM reverts) or override the swap
-fee. An `after*` callback is observational — it records state but cannot revert.
+| Venue | DEX tag | Mainnet program |
+|---|---|---|
+| Orca Whirlpools | `0` | `whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc` |
+| Raydium CLMM | `1` | `CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK` |
+| Meteora DLMM | `2` | `LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo` |
 
-## Decision type
+Meteora DLMM uses discrete bins; the LbPair `activeId` is the analogue of a
+CLMM tick and is what `DynamicFee`, `RangeOrder`, and `AntiMEV` consume.
 
-Each hook returns a decision the engine folds into one result:
+## Uniswap v4 callbacks → Solana CLMM trigger
 
-- `allow` — `false` aborts the lifecycle action.
-- `fee_override_bps` — optional new swap fee in basis points (last write wins).
-- `mev_bps_saved` — basis points of MEV the hook reports prevented (telemetry).
-- `reason` — surfaced in logs and the simulate endpoint.
+| Uniswap v4 callback     | Patcha CLMM trigger          |
+| ----------------------- | ---------------------------- |
+| `beforeInitialize`      | before pool/position init    |
+| `afterInitialize`       | after pool/position init     |
+| `beforeAddLiquidity`    | before `increaseLiquidity`   |
+| `afterAddLiquidity`     | after `increaseLiquidity`    |
+| `beforeRemoveLiquidity` | before `decreaseLiquidity`   |
+| `afterRemoveLiquidity`  | after `decreaseLiquidity`    |
+| `beforeSwap`            | before swap CPI              |
+| `afterSwap`             | after swap CPI               |
+| `beforeDonate`          | before fee donation          |
+| `afterDonate`           | after fee donation           |
 
-When several hooks subscribe to the same callback they run in install order: the
-first veto short-circuits, the last fee override wins, and `mev_bps_saved`
-accumulates.
+## Builtin hooks
 
-## Builtin parameters
+| Hook            | Category | Reacts on                                                  |
+| --------------- | -------- | ---------------------------------------------------------- |
+| Dynamic Fee     | fees     | `beforeSwap`, `afterSwap`                                  |
+| TimeLock        | timing   | `beforeAddLiquidity`, `beforeRemoveLiquidity`              |
+| WhitelistGate   | gating   | `beforeSwap`, `beforeAddLiquidity`                         |
+| RangeOrder      | range    | `afterSwap`                                                |
+| AntiMEV         | mev      | `beforeSwap`, `afterSwap`                                  |
+| KYCGate         | kyc      | `beforeSwap`, `beforeAddLiquidity`                         |
+| PriceImpactCap  | gating   | `beforeSwap`                                               |
+| JIT-Defense     | mev      | `beforeSwap`, `beforeAddLiquidity`, `beforeRemoveLiquidity`|
 
-| Hook | Slug | Callbacks | Key params |
-| --- | --- | --- | --- |
-| Dynamic Fee | `dynamic-fee` | beforeSwap, afterSwap | `baseFeeBps`, `maxFeeBps`, `pivotAmount` |
-| TimeLock | `time-lock` | beforeAddLiquidity, beforeRemoveLiquidity | `unlockTs` |
-| WhitelistGate | `whitelist-gate` | beforeSwap, beforeAddLiquidity | `merkleRoot`, `allowed` |
-| RangeOrder | `range-order` | afterSwap | `tickTarget`, `direction` |
-| AntiMEV | `anti-mev` | beforeSwap, afterSwap | `maxPriceMoveBps`, `referenceDepth` |
-| KYCGate | `kyc-gate` | beforeSwap, beforeAddLiquidity | `attestationAuthority`, `attested` |
+`PriceImpactCap` rejects swaps whose estimated price impact exceeds a per-swap
+cap (LP-owned slippage ceiling). `JIT-Defense` rejects same-block
+add-swap-remove patterns from one wallet (just-in-time LP attack defense). Both
+ride the same `install_hook_burning` path the other six do; see
+[token-economics.md](token-economics.md) for the holder-tier burn table.
 
-## Dynamic-fee interpolation
+The eight builtin hooks and their parameter schemas are shared across the web
+designer, SDK, CLI, and VS Code extension from a single hook-library package, so
+all surfaces agree on slugs, parameters, and on-chain encoding.
 
-`DynamicFee` ramps the fee linearly from `baseFeeBps` to `maxFeeBps`, using the
-swap size relative to `pivotAmount` as a cheap volatility proxy:
-
-```
-fee = base + (max - base) * min(amount_in, pivot) / pivot
-```
-
-The same expression is implemented in `crates/hook-runtime` and in the Anchor
-port, so a simulated fee equals the on-chain fee for any input.
-
-## Community hooks
-
-Slugs outside the six builtins are registered with `kind = community` and start
-unaudited. The executor treats unknown slugs as a no-op (always allow); their
-logic is supplied by the integrator's own program or keeper.
+Reference: Uniswap v4 hooks whitepaper (Uniswap Labs, 2024).

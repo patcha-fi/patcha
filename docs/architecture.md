@@ -1,88 +1,81 @@
 # Architecture
 
-Patcha is a hook framework for Solana concentrated-liquidity market makers
-(CLMMs). It mirrors the Uniswap v4 hook model — custom logic patched onto the
-lifecycle of a pool — and adapts it to Orca Whirlpools and Raydium CLMM, which
-do not call arbitrary programs on their swap path.
+Patcha is a monorepo: a Next.js web app, a FastAPI backend (hook simulation +
+DEX adapters), a Rust hook runtime, an Anchor hook-executor program, a
+TypeScript SDK, a CLI, and a VS Code extension.
 
-## Layers
+Requests flow from the web app to the backend through same-origin `/api/*`
+route handlers (no cross-origin calls). The Anchor program enforces installed
+hooks via PDA-derived accounts on **Orca Whirlpools, Raydium CLMM, and
+Meteora DLMM** pools.
 
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#1A1A1A', 'primaryTextColor': '#F0EAD6', 'primaryBorderColor': '#D4AF37', 'lineColor': '#D4AF37', 'secondaryColor': '#3D2817', 'tertiaryColor': '#1A1A1A', 'fontFamily': 'JetBrains Mono, monospace'}}}%%
-flowchart TB
-    subgraph clients["clients"]
-        web["web designer\n(modular patchbay)"]
-        cli["patcha CLI"]
-        sdk["@patcha/sdk"]
-    end
+## Components
 
-    subgraph core["shared core"]
-        lib["@patcha/hook-library\nslugs · params · cables"]
-        rt["hook-runtime (Rust)\nallow / deny / fee"]
-    end
+| Package | Purpose |
+|---|---|
+| `apps/web` | Next.js Hook Designer, marketplace, devtools, docs |
+| `service/` | FastAPI backend (hook simulate, DAS proxy, marketplace listing) |
+| `packages/anchor-program` | Anchor 0.31 `patcha_hook_executor` program (mainnet `EPcW7e8…rNRa`) |
+| `packages/hook-runtime` | Pure-Rust hook eval, shared off-chain (backtest) and on-chain |
+| `packages/hook-library` | Six standard hooks: schemas + metadata |
+| `packages/sdk-ts` | TypeScript SDK — `PatchaClient` for register/install/trigger |
+| `packages/cli` | `patcha-cli` — `init` / `create` / `list` / `simulate` / `install` / `deploy` |
+| `packages/vscode-extension` | VS Code Designer webview |
+| `packages/whirlpools-adapter` | Orca Whirlpools wrapper (`@orca-so/whirlpools-sdk`) |
+| `packages/raydium-adapter` | Raydium CLMM wrapper (`@raydium-io/raydium-sdk-v2`) |
+| `packages/meteora-adapter` | Meteora DLMM wrapper (`@meteora-ag/dlmm`) |
 
-    subgraph chain["Solana"]
-        prog["patcha-hook-executor\nAnchor program"]
-        orca["Orca Whirlpools"]
-        ray["Raydium CLMM"]
-    end
+## DEX adapter boundary
 
-    backend["backend simulate\n/hook/simulate"]
+Each CLMM venue exposes its own pool schema and quote function. Patcha
+normalizes them via a Rust adapter (`src/adapters/{orca,raydium,meteora}.rs`)
+that maps a venue-specific lifecycle event into a neutral `TriggerCtx`. The
+eight standard hooks consume that context unchanged across venues.
 
-    web --> sdk
-    cli --> sdk
-    sdk --> lib
-    sdk --> backend
-    backend --> rt
-    sdk --> prog
-    lib --> rt
-    rt -. "1:1 port" .-> prog
-    prog --> orca
-    prog --> ray
-```
+| Venue | Adapter | DEX tag | Mainnet program |
+|---|---|---|---|
+| Orca Whirlpools | `orca.rs` | `0` | `whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc` |
+| Raydium CLMM | `raydium.rs` | `1` | `CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK` |
+| Meteora DLMM | `meteora.rs` | `2` | `LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo` |
 
-## Why a trigger boundary
+Meteora DLMM uses discrete bins instead of ticks; the LbPair `activeId` is
+the analogue of a CLMM tick and is what the adapter maps to `TriggerCtx.tick`
+for `DynamicFee`, `RangeOrder`, and `AntiMEV` to consume identically.
 
-Uniswap v4 encodes hook permissions in the hook contract address and the pool
-manager calls the hook directly. Solana CLMMs do not expose that extension
-point, so Patcha is driven at the **integration boundary**: a router program or
-an off-chain keeper observes a pool lifecycle event (swap, add/remove
-liquidity), maps it into a venue-neutral `HookContext`, and calls
-`trigger_hook`. A veto in a `before*` callback reverts the transaction.
+## On-chain executor
 
-## Decision parity
+Program ID: `EPcW7e8RxBNPpQK2XKoKG9maWH6QvmU3ejxifoU5rNRa` (Solana mainnet).
 
-The same hook arithmetic exists twice:
+Instructions (Anchor 0.31):
 
-- `crates/hook-runtime` — toolchain-free std Rust, used by the backend
-  simulator and by unit tests. No Solana dependency, so it tests in
-  milliseconds.
-- `programs/patcha-hook-executor/src/hooks` — a 1:1 port that decodes params
-  from a borsh blob in the `Params` PDA.
+- `initialize_registry` — one-time setup of the hook registry PDA
+- `register_hook(slug, kind, code_hash)` — register a hook in the marketplace
+- `install_hook(pool, slug, dex, params_blob)` — install on a pool; idempotent
+  (re-install with the same `(pool, slug)` updates params without bumping the
+  install counter)
+- `update_params(params_blob)` — installer-only param refresh
+- `trigger_hook(callback, ...)` — emit `HookTriggered` event
+- `uninstall_hook` — deactivate without closing PDAs
 
-Because the slugs, parameter layouts, and arithmetic are identical, a backtest
-in the backend and a trigger on-chain produce the same allow/deny/fee decision.
+All eight standard hooks are registered on mainnet
+(`dynamic-fee`, `time-lock`, `whitelist-gate`, `range-order`, `anti-mev`,
+`kyc-gate`, `price-impact-cap`, `jit-defense`). The executor accepts all
+three DEX tags (`0=orca`, `1=raydium`, `2=meteora`).
 
-## PDA layout
-
-| PDA | Seeds | Holds |
-| --- | --- | --- |
-| registry | `["hook_registry"]` | admin, hook count, install count |
-| hook meta | `["hook", slug]` | kind, code hash, author, audited flag |
-| installation | `["installation", pool, slug]` | pool, installer, dex, active flag |
-| params | `["params", installation]` | borsh-encoded hook params |
-
-## Repository layout
+## Requests flow
 
 ```
-patcha/
-├── crates/
-│   ├── hook-runtime/     toolchain-free engine (callbacks, registry, builtins)
-│   └── hook-adapters/    Orca / Raydium event -> HookContext mappers
-├── programs/
-│   └── patcha-hook-executor/   Anchor program (registry + install + trigger)
-├── packages/
-│   ├── hook-library/     cross-language metadata (slugs, params, cables)
-│   └── ts-sdk/           PDA derivation + params encoders + simulate client
-└── docs/
+browser → /market | /designer | /devtools (Next.js)
+       └─ /api/hook/list      → builtin hook library (server-side)
+       └─ /api/hook/simulate  → service/ FastAPI → byte-identical Rust fee fn
+       └─ /api/das/asset/…    → Helius DAS proxy
+
+CLI → service/ /hook/simulate   (offchain backtest)
+   → mainnet RPC → patcha_hook_executor  (onchain install / register / trigger)
+
+SDK → mainnet RPC → patcha_hook_executor
 ```
+
+The off-chain backtest and the on-chain executor compute the fee from a
+**byte-identical** function: the number printed by `patcha simulate` is the
+exact number a live `HookTriggered` event would emit.
